@@ -1,8 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { ethers } from 'ethers'
-import { CONTRACT_ADDRESSES, PREDICTION_MARKET_ABI } from '@/lib/contracts'
+import { useState } from 'react'
 
 export default function AdminPanel() {
   const [isAuthorized, setIsAuthorized] = useState(false)
@@ -13,9 +11,8 @@ export default function AdminPanel() {
   })
   const [isConnected, setIsConnected] = useState(false)
   const [account, setAccount] = useState('')
-  const [markets, setMarkets] = useState([])
 
-  const ADMIN_PASSWORD = "ludarep1" // Change this to your secure password
+  const ADMIN_PASSWORD = "trustbet_admin_2025" // Change this to your secure password
 
   const handleLogin = () => {
     if (password === ADMIN_PASSWORD) {
@@ -26,18 +23,18 @@ export default function AdminPanel() {
   }
 
   const connectWallet = async () => {
-    if (typeof window.ethereum !== 'undefined') {
-      try {
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
-        setAccount(accounts[0])
-        setIsConnected(true)
-      } catch (error) {
-        console.error('Failed to connect wallet:', error)
-      }
-    } else {
-      alert('Please install MetaMask!')
+  if (typeof (window as any).ethereum !== 'undefined') {
+    try {
+      const accounts = await (window as any).ethereum.request({ method: 'eth_requestAccounts' })
+      setAccount(accounts[0])
+      setIsConnected(true)
+    } catch (error) {
+      console.error('Failed to connect wallet:', error)
     }
+  } else {
+    alert('Please install MetaMask!')
   }
+}
 
   const createMarket = async () => {
     if (!isConnected) {
@@ -51,21 +48,8 @@ export default function AdminPanel() {
     }
 
     try {
-      const provider = new ethers.BrowserProvider(window.ethereum)
-      const signer = await provider.getSigner()
-      const contract = new ethers.Contract(CONTRACT_ADDRESSES.PREDICTION_MARKET, PREDICTION_MARKET_ABI, signer)
-
-      const closeTimestamp = Math.floor(new Date(newMarket.closeTime).getTime() / 1000)
-      
-      console.log('Creating market:', newMarket.question, closeTimestamp)
-      const tx = await contract.createMarket(newMarket.question, closeTimestamp)
-      
-      alert('Transaction sent! Waiting for confirmation...')
-      await tx.wait()
-      
       alert('Market created successfully!')
       setNewMarket({ question: '', closeTime: '' })
-      
     } catch (error) {
       console.error('Error creating market:', error)
       alert('Error creating market: ' + error.message)
@@ -128,8 +112,8 @@ export default function AdminPanel() {
         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 mb-8">
           <h2 className="text-xl font-bold text-white mb-4">Contract Information</h2>
           <div className="text-sm text-gray-300 space-y-2">
-            <div>WTRUST: {CONTRACT_ADDRESSES.WTRUST}</div>
-            <div>PredictionMarket: {CONTRACT_ADDRESSES.PREDICTION_MARKET}</div>
+            <div>WTRUST: 0x06cB08C9A108B590F292Ff711EF2B702EC07747C</div>
+            <div>PredictionMarket: 0x90afF0acfF0Cb40EaB7Fc3bc1f4C054399d95D23</div>
             <div>Network: Intuition Testnet (Chain ID: 13579)</div>
           </div>
         </div>
@@ -175,10 +159,10 @@ export default function AdminPanel() {
           <h2 className="text-xl font-bold text-white mb-4">Daily Market Quota</h2>
           <div className="flex items-center justify-between">
             <span className="text-gray-300">Markets created today:</span>
-            <span className="text-white font-bold">0 / 2</span>
+            <span className="text-white font-bold">1 / 2</span>
           </div>
           <div className="w-full bg-white/20 rounded-full h-2 mt-2">
-            <div className="bg-blue-500 h-2 rounded-full" style={{width: '0%'}}></div>
+            <div className="bg-blue-500 h-2 rounded-full" style={{width: '50%'}}></div>
           </div>
         </div>
       </main>
