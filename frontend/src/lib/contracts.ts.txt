@@ -1,0 +1,32 @@
+export const CONTRACT_ADDRESSES = {
+  WTRUST: process.env.NEXT_PUBLIC_WTRUST_ADDRESS || '',
+  PREDICTION_MARKET: process.env.NEXT_PUBLIC_PREDICTION_MARKET_ADDRESS || '',
+}
+
+export const NETWORK_CONFIG = {
+  chainId: 13579,
+  name: 'Intuition Testnet',
+  rpc: 'http://testnet.rpc.intuition.systems',
+  explorer: 'http://testnet.explorer.intuition.systems',
+  currency: 'tTRUST'
+}
+
+// Contract ABIs (simplified for key functions)
+export const WTRUST_ABI = [
+  "function balanceOf(address) view returns (uint256)",
+  "function permit(address,address,uint256,uint256,uint8,bytes32,bytes32)",
+  "function nonces(address) view returns (uint256)",
+  "function DOMAIN_SEPARATOR() view returns (bytes32)",
+  "function deposit() payable",
+  "function withdraw(uint256)"
+]
+
+export const PREDICTION_MARKET_ABI = [
+  "function betWithPermit(uint256,bool,uint256,uint256,uint8,bytes32,bytes32)",
+  "function getMarket(uint256) view returns (string,uint256,uint256,uint256,bool,bool)",
+  "function getUserBets(uint256,address) view returns (uint256,uint256,bool)",
+  "function claim(uint256)",
+  "function createMarket(string,uint256) returns (uint256)",
+  "function resolveMarket(uint256,bool)",
+  "function nextMarketId() view returns (uint256)"
+]
