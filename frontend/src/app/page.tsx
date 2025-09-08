@@ -10,18 +10,19 @@ export default function Home() {
   const [betModal, setBetModal] = useState({ isOpen: false, side: 'YES' as 'YES' | 'NO', marketId: 1 })
 
   const connectWallet = async () => {
-    if (typeof window.ethereum !== 'undefined') {
-      try {
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
-        setConnectedAccount(accounts[0])
-      } catch (error) {
-        console.error('Failed to connect wallet:', error)
-        alert('Failed to connect wallet. Make sure MetaMask is installed.')
-      }
-    } else {
-      alert('Please install MetaMask!')
+  if (typeof window !== 'undefined' && 'ethereum' in window) {
+    try {
+      const ethereum = (window as any).ethereum;
+      const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+      setConnectedAccount(accounts[0]);
+    } catch (error) {
+      console.error('Failed to connect wallet:', error);
+      alert('Failed to connect wallet. Make sure MetaMask is installed.');
     }
+  } else {
+    alert('Please install MetaMask!');
   }
+}
 
   const handleBet = async (amount: string, side: boolean) => {
     if (!connectedAccount) {
