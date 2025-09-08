@@ -23,16 +23,17 @@ export default function AdminPanel() {
   }
 
   const connectWallet = async () => {
-  if (typeof (window as any).ethereum !== 'undefined') {
+  if (typeof window !== 'undefined' && 'ethereum' in window) {
     try {
-      const accounts = await (window as any).ethereum.request({ method: 'eth_requestAccounts' })
-      setAccount(accounts[0])
-      setIsConnected(true)
+      const ethereum = (window as any).ethereum;
+      const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+      setAccount(accounts[0]);
+      setIsConnected(true);
     } catch (error) {
-      console.error('Failed to connect wallet:', error)
+      console.error('Failed to connect wallet:', error);
     }
   } else {
-    alert('Please install MetaMask!')
+    alert('Please install MetaMask!');
   }
 }
 
