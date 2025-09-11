@@ -97,13 +97,11 @@ export default function Home() {
     
     // Test different possible function names one by one
     const testFunctions = [
-      'getMarketCount()',
-      'marketCount()',
-      'totalMarkets()',
-      'numMarkets()',
-      'getMarketsCount()',
-      'marketsLength()'
-    ];
+  'owner()',
+  'name()',
+  'symbol()', 
+  'totalSupply()'
+];
     
     for (const funcName of testFunctions) {
       try {
