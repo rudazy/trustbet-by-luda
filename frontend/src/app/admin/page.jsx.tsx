@@ -8,32 +8,42 @@ export default function AdminPanel() {
   const [newMarket, setNewMarket] = useState({ question: '', closeTime: '' })
   const [isConnected, setIsConnected] = useState(false)
   const [account, setAccount] = useState('')
-
-  const connectWallet = async () => {
-    if (typeof window !== 'undefined' && window.ethereum) {
+const connectWallet = async () => {
+  if (typeof window !== 'undefined' && window.ethereum) {
+    try {
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
+      
+      // Switch to Intuition network
       try {
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
-        
-        // Switch to Intuition network
-        try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x351B' }]
+        })
+      } catch (switchError) {
+        if (switchError.code === 4902) {
           await window.ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: '0x351B' }]
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: '0x351B',
+              chainName: 'Intuition Testnet',
+              nativeCurrency: { name: 'tTRUST', symbol: 'tTRUST', decimals: 18 },
+              rpcUrls: ['http://testnet.rpc.intuition.systems'],
+              blockExplorerUrls: ['http://testnet.explorer.intuition.systems']
+            }]
           })
-        } catch (switchError) {
-          if (switchError.code === 4902) {
-            await window.ethereum.request({
-              method: 'wallet_addEthereumChain',
-              params: [{
-                chainId: '0x351B',
-                chainName: 'Intuition Testnet',
-                nativeCurrency: { name: 'tTRUST', symbol: 'tTRUST', decimals: 18 },
-                rpcUrls: ['http://testnet.rpc.intuition.systems'],
-                blockExplorerUrls: ['http://testnet.explorer.intuition.systems']
-              }]
-            })
-          }
         }
+      }
+      
+      setAccount(accounts[0])
+      setIsConnected(true)
+      alert('Wallet connected successfully!')
+    } catch (error) {
+      alert('Failed to connect wallet')
+    }
+  } else {
+    alert('Please install MetaMask!')
+  }
+}
         
         setAccount(accounts[0])
         setIsConnected(true)
