@@ -90,63 +90,44 @@ export default function Home() {
   };
 
   const loadMarkets = async () => {
-    try {
-      console.log('Loading markets...');
-      
-      // Use public RPC provider to read data (no wallet needed)
-      const provider = new ethers.providers.JsonRpcProvider('https://testnet.rpc.intuition.systems');
-      const contract = new ethers.Contract(
-        CONTRACT_ADDRESSES.PREDICTION_MARKET,
-        PREDICTION_MARKET_ABI,
-        provider
-      );
-
-      console.log('Contract address:', CONTRACT_ADDRESSES.PREDICTION_MARKET);
-      
-      const marketCount = await contract.getMarketCount();
-      console.log('Market count:', marketCount.toString());
-      
-      const marketList: Market[] = [];
-      
-      for (let i = 0; i < marketCount.toNumber(); i++) {
-        try {
-          console.log(`Loading market ${i}...`);
-          const market = await contract.getMarket(i);
-          
-          const totalYes = parseFloat(ethers.utils.formatEther(market.totalYesBets));
-          const totalNo = parseFloat(ethers.utils.formatEther(market.totalNoBets));
-          const total = totalYes + totalNo;
-          
-          const yesPercentage = total > 0 ? (totalYes / total) * 100 : 50;
-          const noPercentage = total > 0 ? (totalNo / total) * 100 : 50;
-          
-          marketList.push({
-            id: i,
-            question: market.question,
-            totalYesBets: totalYes.toFixed(2),
-            totalNoBets: totalNo.toFixed(2),
-            bettingEndTime: market.bettingEndTime.toNumber(),
-            resolved: market.resolved,
-            outcome: market.outcome,
-            active: market.active,
-            yesPercentage: Math.round(yesPercentage),
-            noPercentage: Math.round(noPercentage),
-            timeLeft: getTimeLeft(market.bettingEndTime.toNumber())
-          });
-          
-          console.log(`Market ${i} loaded:`, market.question);
-        } catch (err) {
-          console.error(`Error loading market ${i}:`, err);
-        }
+  try {
+    console.log('Loading markets...');
+    
+    const provider = new ethers.providers.JsonRpcProvider('https://testnet.rpc.intuition.systems');
+    
+    // Test different possible function names one by one
+    const testFunctions = [
+      'getMarketCount()',
+      'marketCount()',
+      'totalMarkets()',
+      'numMarkets()',
+      'getMarketsCount()',
+      'marketsLength()'
+    ];
+    
+    for (const funcName of testFunctions) {
+      try {
+        const abi = [`function ${funcName} view returns (uint256)`];
+        const contract = new ethers.Contract(CONTRACT_ADDRESSES.PREDICTION_MARKET, abi, provider);
+        
+        const count = await contract[funcName.split('(')[0]]();
+        console.log(`✅ Found working function: ${funcName} returns:`, count.toString());
+        
+        alert(`Found it! Your contract uses: ${funcName} and returns: ${count.toString()}`);
+        return;
+        
+      } catch (err) {
+        console.log(`❌ ${funcName} failed:`, err.message);
       }
-      
-      console.log('All markets loaded:', marketList);
-      setMarkets(marketList);
-    } catch (err) {
-      console.error('Error loading markets:', err);
-      setError(`Failed to load markets: ${err.message}`);
     }
-  };
+    
+    setError('None of the common market count functions work. Please share your contract code.');
+    
+  } catch (err) {
+    console.error('Error testing functions:', err);
+    setError(`Error: ${err.message}`);
+  }
+};
 
   const getTimeLeft = (endTime: number): string => {
     const now = Math.floor(Date.now() / 1000);
