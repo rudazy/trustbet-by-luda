@@ -1,13 +1,23 @@
 // utils/contracts.js
 
 export const PREDICTION_MARKET_ABI = [
+  // Try different possible function names
+  "function getMarketCount() external view returns (uint256)",
+  "function marketCount() external view returns (uint256)",
+  "function totalMarkets() external view returns (uint256)",
+  "function numMarkets() external view returns (uint256)",
+  "function marketCounter() external view returns (uint256)",
+  
+  // Try different getMarket signatures
+  "function getMarket(uint256 marketId) external view returns (tuple(string question, uint256 totalYesBets, uint256 totalNoBets, uint256 bettingEndTime, bool resolved, bool outcome, bool active))",
+  "function markets(uint256) external view returns (string, uint256, uint256, uint256, bool, bool, bool)",
+  "function getMarketInfo(uint256) external view returns (string, uint256, uint256, uint256, bool, bool, bool)",
+  
+  // Other functions
   "function createMarket(string memory question, uint256 bettingEndTime) external returns (uint256)",
   "function resolveMarket(uint256 marketId, bool outcome) external",
   "function placeBet(uint256 marketId, bool prediction, uint256 amount) external",
-  "function getMarket(uint256 marketId) external view returns (tuple(string question, uint256 totalYesBets, uint256 totalNoBets, uint256 bettingEndTime, bool resolved, bool outcome, bool active))",
-  "function getMarketCount() external view returns (uint256)",
-  "function owner() external view returns (address)",
-  "function feePercentage() external view returns (uint256)"
+  "function owner() external view returns (address)"
 ];
 
 export const WTRUST_ABI = [
