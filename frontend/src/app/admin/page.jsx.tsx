@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { connectToMetaMask, createMarketOnChain } from '@/lib/web3'
 
 export default function AdminPanel() {
   const [isAuthorized, setIsAuthorized] = useState(false)
@@ -11,40 +10,50 @@ export default function AdminPanel() {
   const [account, setAccount] = useState('')
 
   const connectWallet = async () => {
-    try {
-      const connectedAccount = await connectToMetaMask()
-      if (connectedAccount) {
-        setAccount(connectedAccount)
+    if (typeof window !== 'undefined' && window.ethereum) {
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
+        
+        // Switch to Intuition network
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x351B' }]
+          })
+        } catch (switchError) {
+          if (switchError.code === 4902) {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0x351B',
+                chainName: 'Intuition Testnet',
+                nativeCurrency: { name: 'tTRUST', symbol: 'tTRUST', decimals: 18 },
+                rpcUrls: ['http://testnet.rpc.intuition.systems'],
+                blockExplorerUrls: ['http://testnet.explorer.intuition.systems']
+              }]
+            })
+          }
+        }
+        
+        setAccount(accounts[0])
         setIsConnected(true)
         alert('Wallet connected successfully!')
-      } else {
+      } catch (error) {
         alert('Failed to connect wallet')
       }
-    } catch (error) {
-      alert('Error connecting wallet')
+    } else {
+      alert('Please install MetaMask!')
     }
   }
 
-  const createMarket = async () => {
-    if (!isConnected) {
-      alert('Please connect your wallet first')
-      return
-    }
-
+  const createMarket = () => {
     if (!newMarket.question || !newMarket.closeTime) {
       alert('Please fill in all fields')
       return
     }
-
-    try {
-      const success = await createMarketOnChain(newMarket.question, newMarket.closeTime)
-      if (success) {
-        alert(Market "${newMarket.question}" created successfully!)
-        setNewMarket({ question: '', closeTime: '' })
-      }
-    } catch (error) {
-      alert('Error creating market')
-    }
+    
+    alert(`Market "${newMarket.question}" ready to create!\nUse MetaMask to call createMarket() on: 0x90afF0acfF0Cb40EaB7Fc3bc1f4C054399d95D23`)
+    setNewMarket({ question: '', closeTime: '' })
   }
 
   if (!isAuthorized) {
@@ -58,7 +67,6 @@ export default function AdminPanel() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full p-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-gray-300 mb-4"
-            onKeyPress={(e) => e.key === 'Enter' && (password === "trustbet_admin_2025" ? setIsAuthorized(true) : alert('Wrong password'))}
           />
           <button 
             onClick={() => password === "trustbet_admin_2025" ? setIsAuthorized(true) : alert('Wrong password')}
@@ -81,7 +89,7 @@ export default function AdminPanel() {
               onClick={connectWallet}
               className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
             >
-              {isConnected ? ${account.slice(0, 6)}...${account.slice(-4)} : 'Connect Wallet'}
+              {isConnected ? `${account.slice(0, 6)}...${account.slice(-4)}` : 'Connect Wallet'}
             </button>
             <button
               onClick={() => setIsAuthorized(false)}
@@ -106,7 +114,6 @@ export default function AdminPanel() {
 
         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">
           <h2 className="text-xl font-bold text-white mb-4">Create New Market</h2>
-          
           <div className="space-y-4">
             <input
               type="text"
@@ -123,10 +130,9 @@ export default function AdminPanel() {
             />
             <button
               onClick={createMarket}
-              disabled={!isConnected}
-              className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white py-3 rounded-lg font-medium"
+              className="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-medium"
             >
-              {isConnected ? 'Create Market' : 'Connect Wallet First'}
+              Create Market
             </button>
           </div>
         </div>
