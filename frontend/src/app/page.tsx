@@ -90,16 +90,14 @@ export default function Home() {
   };
 
   const loadMarkets = async () => {
-    try {
-      const ethereum = getEthereumProvider();
-      if (!ethereum) return;
-
-      const provider = new ethers.providers.Web3Provider(ethereum);
-      const contract = new ethers.Contract(
-        CONTRACT_ADDRESSES.PREDICTION_MARKET,
-        PREDICTION_MARKET_ABI,
-        provider
-      );
+  try {
+    // Use public RPC provider instead of requiring MetaMask
+    const provider = new ethers.providers.JsonRpcProvider('http://testnet.rpc.intuition.systems');
+    const contract = new ethers.Contract(
+      CONTRACT_ADDRESSES.PREDICTION_MARKET,
+      PREDICTION_MARKET_ABI,
+      provider
+    );
 
       const marketCount = await contract.getMarketCount();
       const marketList: Market[] = [];
