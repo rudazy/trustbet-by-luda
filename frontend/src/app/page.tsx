@@ -94,7 +94,7 @@ export default function Home() {
       console.log('Loading markets...');
       
       // Use public RPC provider to read data (no wallet needed)
-      const provider = new ethers.providers.JsonRpcProvider('http://testnet.rpc.intuition.systems');
+      const provider = new ethers.providers.JsonRpcProvider('https://testnet.rpc.intuition.systems');
       const contract = new ethers.Contract(
         CONTRACT_ADDRESSES.PREDICTION_MARKET,
         PREDICTION_MARKET_ABI,
@@ -175,7 +175,7 @@ export default function Home() {
       setError('');
       
       // Check with public RPC
-      const provider = new ethers.providers.JsonRpcProvider('http://testnet.rpc.intuition.systems');
+      const provider = new ethers.providers.JsonRpcProvider('https://testnet.rpc.intuition.systems');
       console.log('Provider connected');
       
       const contractAddress = CONTRACT_ADDRESSES.PREDICTION_MARKET;
