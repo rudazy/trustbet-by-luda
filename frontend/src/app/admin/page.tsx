@@ -3,6 +3,15 @@
 import { useState } from 'react'
 import { ethers } from 'ethers'
 
+declare global {
+  interface Window {
+    ethereum?: {
+      request: (args: { method: string; params?: any[] }) => Promise<any>
+      isMetaMask?: boolean
+    }
+  }
+}
+
 const CONTRACT_ADDRESSES = {
   WTRUST: '0x06cB08C9A108B590F292Ff711EF2B702EC07747C',
   PREDICTION_MARKET: '0x90afF0acfF0Cb40EaB7Fc3bc1f4C054399d95D23'
@@ -15,6 +24,16 @@ const PREDICTION_MARKET_ABI = [
   "function getMarket(uint256) view returns (string,uint256,uint256,uint256,bool,bool)"
 ]
 
+interface Market {
+  id: number
+  question: string
+  closeTime: Date
+  yesPool: string
+  noPool: string
+  resolved: boolean
+  outcome: boolean
+}
+
 export default function AdminPanel() {
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [password, setPassword] = useState('')
@@ -24,7 +43,7 @@ export default function AdminPanel() {
   })
   const [isConnected, setIsConnected] = useState(false)
   const [account, setAccount] = useState('')
-  const [activeMarkets, setActiveMarkets] = useState<any[]>([])
+  const [activeMarkets, setActiveMarkets] = useState<Market[]>([])
 
   const ADMIN_PASSWORD = "trustbet_admin_2025"
 
@@ -37,20 +56,19 @@ export default function AdminPanel() {
   }
 
   const connectWallet = async () => {
-    if (typeof window !== 'undefined' && 'ethereum' in window) {
+    if (typeof window !== 'undefined' && window.ethereum) {
       try {
-        const ethereum = (window as any).ethereum
-        const accounts = await ethereum.request({ method: 'eth_requestAccounts' })
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
         
-        // Switch to Intuition network
         try {
-          await ethereum.request({
+          await window.ethereum.request({
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: '0x351B' }]
           })
-        } catch (switchError: any) {
-          if (switchError.code === 4902) {
-            await ethereum.request({
+        } catch (switchError) {
+          const error = switchError as { code: number }
+          if (error.code === 4902) {
+            await window.ethereum.request({
               method: 'wallet_addEthereumChain',
               params: [{
                 chainId: '0x351B',
@@ -77,11 +95,12 @@ export default function AdminPanel() {
 
   const loadMarkets = async () => {
     try {
-      const provider = new ethers.BrowserProvider((window as any).ethereum)
+      if (!window.ethereum) return
+      const provider = new ethers.BrowserProvider(window.ethereum)
       const contract = new ethers.Contract(CONTRACT_ADDRESSES.PREDICTION_MARKET, PREDICTION_MARKET_ABI, provider)
       
       const nextId = await contract.nextMarketId()
-      const markets = []
+      const markets: Market[] = []
       
       for (let i = 1; i < nextId; i++) {
         const market = await contract.getMarket(i)
@@ -114,7 +133,8 @@ export default function AdminPanel() {
     }
 
     try {
-      const provider = new ethers.BrowserProvider((window as any).ethereum)
+      if (!window.ethereum) return
+      const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = await provider.getSigner()
       const contract = new ethers.Contract(CONTRACT_ADDRESSES.PREDICTION_MARKET, PREDICTION_MARKET_ABI, signer)
 
@@ -130,13 +150,14 @@ export default function AdminPanel() {
       await loadMarkets()
     } catch (error) {
       console.error('Error creating market:', error)
-      alert('Error creating market: ' + (error as any).message)
+      alert('Error creating market: ' + String(error))
     }
   }
 
   const resolveMarket = async (marketId: number, outcome: boolean) => {
     try {
-      const provider = new ethers.BrowserProvider((window as any).ethereum)
+      if (!window.ethereum) return
+      const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = await provider.getSigner()
       const contract = new ethers.Contract(CONTRACT_ADDRESSES.PREDICTION_MARKET, PREDICTION_MARKET_ABI, signer)
 
@@ -149,7 +170,7 @@ export default function AdminPanel() {
       await loadMarkets()
     } catch (error) {
       console.error('Error resolving market:', error)
-      alert('Error resolving market: ' + (error as any).message)
+      alert('Error resolving market: ' + String(error))
     }
   }
 
@@ -239,7 +260,6 @@ export default function AdminPanel() {
           </div>
         </div>
 
-        {/* Active Markets Management */}
         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">
           <h2 className="text-xl font-bold text-white mb-4">Active Markets ({activeMarkets.length})</h2>
           
