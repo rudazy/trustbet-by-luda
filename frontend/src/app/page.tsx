@@ -90,20 +90,27 @@ export default function Home() {
   };
 
   const loadMarkets = async () => {
-  try {
-    // Use public RPC provider instead of requiring MetaMask
-    const provider = new ethers.providers.JsonRpcProvider('http://testnet.rpc.intuition.systems');
-    const contract = new ethers.Contract(
-      CONTRACT_ADDRESSES.PREDICTION_MARKET,
-      PREDICTION_MARKET_ABI,
-      provider
-    );
+    try {
+      console.log('Loading markets...');
+      
+      // Use public RPC provider to read data (no wallet needed)
+      const provider = new ethers.providers.JsonRpcProvider('http://testnet.rpc.intuition.systems');
+      const contract = new ethers.Contract(
+        CONTRACT_ADDRESSES.PREDICTION_MARKET,
+        PREDICTION_MARKET_ABI,
+        provider
+      );
 
+      console.log('Contract address:', CONTRACT_ADDRESSES.PREDICTION_MARKET);
+      
       const marketCount = await contract.getMarketCount();
+      console.log('Market count:', marketCount.toString());
+      
       const marketList: Market[] = [];
       
       for (let i = 0; i < marketCount.toNumber(); i++) {
         try {
+          console.log(`Loading market ${i}...`);
           const market = await contract.getMarket(i);
           
           const totalYes = parseFloat(ethers.utils.formatEther(market.totalYesBets));
@@ -126,14 +133,18 @@ export default function Home() {
             noPercentage: Math.round(noPercentage),
             timeLeft: getTimeLeft(market.bettingEndTime.toNumber())
           });
+          
+          console.log(`Market ${i} loaded:`, market.question);
         } catch (err) {
           console.error(`Error loading market ${i}:`, err);
         }
       }
       
+      console.log('All markets loaded:', marketList);
       setMarkets(marketList);
     } catch (err) {
       console.error('Error loading markets:', err);
+      setError(`Failed to load markets: ${err.message}`);
     }
   };
 
@@ -155,6 +166,69 @@ export default function Home() {
       return `${hours}h ${minutes}m`;
     } else {
       return `${minutes}m`;
+    }
+  };
+
+  const debugContract = async () => {
+    try {
+      console.log('=== DEBUG CONTRACT ===');
+      setError('');
+      
+      // Check with public RPC
+      const provider = new ethers.providers.JsonRpcProvider('http://testnet.rpc.intuition.systems');
+      console.log('Provider connected');
+      
+      const contractAddress = CONTRACT_ADDRESSES.PREDICTION_MARKET;
+      console.log('Checking contract at:', contractAddress);
+      
+      // Check if contract exists
+      const code = await provider.getCode(contractAddress);
+      console.log('Contract exists:', code !== '0x');
+      console.log('Code length:', code.length);
+      
+      if (code === '0x') {
+        setError('❌ Contract not found at this address!');
+        return;
+      }
+      
+      // Try different ABIs to find what works
+      const testABIs = [
+        ["function getMarketCount() view returns (uint256)"],
+        ["function marketCount() view returns (uint256)"],
+        ["function totalMarkets() view returns (uint256)"],
+        ["function markets(uint256) view returns (string, uint256, uint256, uint256, bool, bool, bool)"]
+      ];
+      
+      for (let i = 0; i < testABIs.length; i++) {
+        try {
+          const testContract = new ethers.Contract(contractAddress, testABIs[i], provider);
+          
+          if (i === 0) {
+            const count = await testContract.getMarketCount();
+            console.log('✅ getMarketCount works:', count.toString());
+            setError(`✅ Contract found! Markets: ${count.toString()}`);
+            return;
+          } else if (i === 1) {
+            const count = await testContract.marketCount();
+            console.log('✅ marketCount works:', count.toString());
+            setError(`✅ Contract found! Markets: ${count.toString()}`);
+            return;
+          } else if (i === 2) {
+            const count = await testContract.totalMarkets();
+            console.log('✅ totalMarkets works:', count.toString());
+            setError(`✅ Contract found! Markets: ${count.toString()}`);
+            return;
+          }
+        } catch (err) {
+          console.log(`❌ Test ${i} failed:`, err.message);
+        }
+      }
+      
+      setError('❌ Contract exists but no compatible functions found');
+      
+    } catch (err) {
+      console.error('Debug error:', err);
+      setError(`❌ Debug Error: ${err.message}`);
     }
   };
 
@@ -221,9 +295,9 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Error Alert */}
+      {/* Error/Success Alert */}
       {error && (
-        <div className="bg-red-500/20 border border-red-500/50 text-red-200 p-4 m-4 rounded-lg">
+        <div className={`${error.includes('✅') ? 'bg-green-500/20 border-green-500/50 text-green-200' : 'bg-red-500/20 border-red-500/50 text-red-200'} border p-4 m-4 rounded-lg`}>
           {error}
         </div>
       )}
@@ -233,8 +307,27 @@ export default function Home() {
         <div className="text-center mb-12">
           <h2 className="text-5xl font-bold text-white mb-4">Predict the Future</h2>
           <p className="text-xl text-blue-200">Binary prediction markets on Intuition testnet</p>
-          <div className="mt-4 text-white/70">
-            <p>Connected to: {CONTRACT_ADDRESSES.PREDICTION_MARKET}</p>
+          <div className="mt-4 text-white/70 text-sm">
+            <p>Contract: {CONTRACT_ADDRESSES.PREDICTION_MARKET}</p>
+          </div>
+        </div>
+
+        {/* Debug Section */}
+        <div className="text-center mb-8">
+          <div className="flex justify-center gap-4">
+            <button 
+              onClick={loadMarkets}
+              disabled={loading}
+              className="bg-blue-500/20 border border-blue-500/50 text-blue-200 px-6 py-3 rounded-lg hover:bg-blue-500/30 transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Loading...' : 'Refresh Markets'}
+            </button>
+            <button 
+              onClick={debugContract}
+              className="bg-yellow-500/20 border border-yellow-500/50 text-yellow-200 px-6 py-3 rounded-lg hover:bg-yellow-500/30 transition-colors"
+            >
+              🔍 Debug Contract
+            </button>
           </div>
         </div>
 
@@ -243,13 +336,12 @@ export default function Home() {
           <div className="text-center">
             <div className="bg-white/10 rounded-xl p-8 border border-white/20">
               <h3 className="text-2xl font-bold text-white mb-4">No Markets Available</h3>
-              <p className="text-white/70 mb-4">Be the first to create a prediction market!</p>
-              <button 
-                onClick={loadMarkets}
-                className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors"
-              >
-                Refresh Markets
-              </button>
+              <p className="text-white/70 mb-4">
+                {error ? 'There was an error loading markets. Check the debug output above.' : 'Be the first to create a prediction market!'}
+              </p>
+              <p className="text-white/50 text-sm">
+                Open browser console (F12) to see detailed debug information
+              </p>
             </div>
           </div>
         ) : (
@@ -328,16 +420,6 @@ export default function Home() {
             ))}
           </div>
         )}
-
-        {/* Refresh Button */}
-        <div className="text-center mt-8">
-          <button 
-            onClick={loadMarkets}
-            className="bg-blue-500/20 border border-blue-500/50 text-blue-200 px-6 py-3 rounded-lg hover:bg-blue-500/30 transition-colors"
-          >
-            Refresh Markets
-          </button>
-        </div>
       </main>
 
       {/* Bet Modal */}
