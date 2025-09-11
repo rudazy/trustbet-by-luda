@@ -96,6 +96,68 @@ export default function AdminPage() {
     }
   };
 
+  const debugContractIssue = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const ethereum = getEthereumProvider();
+      const provider = new ethers.providers.Web3Provider(ethereum);
+      
+      console.log('=== CONTRACT DEBUG ===');
+      console.log('Contract Address:', CONTRACT_ADDRESSES.PREDICTION_MARKET);
+      console.log('Your Account:', account);
+      
+      // 1. Check if contract exists
+      const code = await provider.getCode(CONTRACT_ADDRESSES.PREDICTION_MARKET);
+      console.log('Contract exists:', code !== '0x');
+      console.log('Code length:', code.length);
+      
+      if (code === '0x') {
+        setError('❌ Contract not deployed at this address!');
+        return;
+      }
+      
+      // 2. Try different function calls to see what works
+      const testABIs = [
+        ["function owner() view returns (address)"],
+        ["function getMarketCount() view returns (uint256)"],
+      ];
+      
+      for (let i = 0; i < testABIs.length; i++) {
+        try {
+          const testContract = new ethers.Contract(CONTRACT_ADDRESSES.PREDICTION_MARKET, testABIs[i], provider);
+          
+          if (i === 0) {
+            const owner = await testContract.owner();
+            console.log('✅ Owner function works. Owner:', owner);
+            console.log('Are you owner?', owner.toLowerCase() === account.toLowerCase());
+            setSuccess(`Contract found! Owner: ${owner}. You are ${owner.toLowerCase() === account.toLowerCase() ? '' : 'NOT '}the owner.`);
+          } else if (i === 1) {
+            const count = await testContract.getMarketCount();
+            console.log('✅ getMarketCount works. Count:', count.toString());
+          }
+        } catch (err) {
+          console.log(`❌ Test ${i} failed:`, err.message);
+        }
+      }
+      
+      // 3. Check your account balance
+      const balance = await provider.getBalance(account);
+      console.log('Your tTRUST balance:', ethers.utils.formatEther(balance));
+      
+      if (balance.isZero()) {
+        setError('❌ You have 0 tTRUST! You need testnet tokens to pay for gas.');
+      }
+      
+    } catch (err) {
+      console.error('Debug failed:', err);
+      setError(`Debug error: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogin = (e) => {
     e.preventDefault();
     if (password === 'trustbet_admin_2025') {
@@ -295,12 +357,21 @@ export default function AdminPage() {
             <div className="text-white">
               <p className="mb-2">Connected: <span className="text-green-400">{account}</span></p>
               <p className="text-sm text-white/70">Network: Intuition Testnet</p>
-              <button
-                onClick={loadMarkets}
-                className="mt-2 bg-blue-500/20 text-blue-200 px-4 py-2 rounded-lg border border-blue-500/50 hover:bg-blue-500/30 transition-all"
-              >
-                Refresh Markets
-              </button>
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={loadMarkets}
+                  className="bg-blue-500/20 text-blue-200 px-4 py-2 rounded-lg border border-blue-500/50 hover:bg-blue-500/30 transition-all"
+                >
+                  Refresh Markets
+                </button>
+                <button
+                  onClick={debugContractIssue}
+                  disabled={loading}
+                  className="bg-yellow-500/20 text-yellow-200 px-4 py-2 rounded-lg border border-yellow-500/50 hover:bg-yellow-500/30 transition-all disabled:opacity-50"
+                >
+                  🔍 Debug Contract
+                </button>
+              </div>
             </div>
           ) : (
             <button
