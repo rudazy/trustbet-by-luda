@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { ethers } from 'ethers';
 import { connectWallet, switchToIntuitionTestnet, getCurrentAccount, getEthereumProvider } from '../../utils/ethereum';
+import { PREDICTION_MARKET_ABI, CONTRACT_ADDRESSES } from '../../utils/contracts';
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -18,10 +20,9 @@ export default function AdminPage() {
   // Market resolution
   const [marketId, setMarketId] = useState('');
   const [outcome, setOutcome] = useState('');
-
-  // Contract addresses
-  const PREDICTION_MARKET_ADDRESS = '0x90afF0acfF0Cb40EaB7Fc3bc1f4C054399d95D23';
-  const WTRUST_ADDRESS = '0x06cB08C9A108B590F292Ff711EF2B702EC07747C';
+  
+  // Markets list
+  const [markets, setMarkets] = useState([]);
 
   useEffect(() => {
     // Check if already authenticated
@@ -34,6 +35,12 @@ export default function AdminPage() {
     checkWalletConnection();
   }, []);
 
+  useEffect(() => {
+    if (isAuthenticated && account) {
+      loadMarkets();
+    }
+  }, [isAuthenticated, account]);
+
   const checkWalletConnection = async () => {
     try {
       const currentAccount = await getCurrentAccount();
@@ -42,6 +49,50 @@ export default function AdminPage() {
       }
     } catch (err) {
       console.error('Error checking wallet:', err);
+    }
+  };
+
+  const getContract = async () => {
+    const ethereum = getEthereumProvider();
+    if (!ethereum) throw new Error('MetaMask not found');
+    
+    const provider = new ethers.providers.Web3Provider(ethereum);
+    const signer = provider.getSigner();
+    
+    return new ethers.Contract(
+      CONTRACT_ADDRESSES.PREDICTION_MARKET,
+      PREDICTION_MARKET_ABI,
+      signer
+    );
+  };
+
+  const loadMarkets = async () => {
+    try {
+      const contract = await getContract();
+      const marketCount = await contract.getMarketCount();
+      const marketList = [];
+      
+      for (let i = 0; i < marketCount.toNumber(); i++) {
+        try {
+          const market = await contract.getMarket(i);
+          marketList.push({
+            id: i,
+            question: market.question,
+            totalYesBets: ethers.utils.formatEther(market.totalYesBets),
+            totalNoBets: ethers.utils.formatEther(market.totalNoBets),
+            bettingEndTime: new Date(market.bettingEndTime.toNumber() * 1000).toLocaleString(),
+            resolved: market.resolved,
+            outcome: market.outcome,
+            active: market.active
+          });
+        } catch (err) {
+          console.error(`Error loading market ${i}:`, err);
+        }
+      }
+      
+      setMarkets(marketList);
+    } catch (err) {
+      console.error('Error loading markets:', err);
     }
   };
 
@@ -89,36 +140,32 @@ export default function AdminPage() {
       setLoading(true);
       setError('');
       
-      const ethereum = getEthereumProvider();
-      if (!ethereum) {
-        throw new Error('MetaMask not found');
-      }
-
+      const contract = await getContract();
+      
       // Convert end time to timestamp
       const endTimestamp = Math.floor(new Date(endTime).getTime() / 1000);
       
-      // Contract ABI for createMarket function
-      const createMarketData = `0x${
-        // Function selector for createMarket(string,uint256)
-        '1234567890abcdef1234567890abcdef12345678' + 
-        // Encoded parameters would go here - simplified for demo
-        '0'.repeat(64)
-      }`;
-
-      const txHash = await ethereum.request({
-        method: 'eth_sendTransaction',
-        params: [{
-          from: account,
-          to: PREDICTION_MARKET_ADDRESS,
-          data: createMarketData,
-          gas: '0x76c0', // 30400
-        }],
+      console.log('Creating market:', question, endTimestamp);
+      
+      // Call createMarket function
+      const tx = await contract.createMarket(question, endTimestamp, {
+        gasLimit: 500000 // Set gas limit
       });
-
-      setSuccess(`Market creation transaction sent: ${txHash}`);
+      
+      setSuccess(`Market creation transaction sent: ${tx.hash}`);
+      
+      // Wait for transaction to be mined
+      await tx.wait();
+      
+      setSuccess(`Market created successfully! Transaction: ${tx.hash}`);
       setQuestion('');
       setEndTime('');
+      
+      // Reload markets
+      setTimeout(() => loadMarkets(), 2000);
+      
     } catch (err) {
+      console.error('Error creating market:', err);
       setError(`Error creating market: ${err.message}`);
     } finally {
       setLoading(false);
@@ -136,28 +183,33 @@ export default function AdminPage() {
       setLoading(true);
       setError('');
       
-      const ethereum = getEthereumProvider();
-      if (!ethereum) {
-        throw new Error('MetaMask not found');
-      }
+      const contract = await getContract();
+      
+      console.log('Resolving market:', marketId, outcome === 'true');
+      
+      // Call resolveMarket function
+      const tx = await contract.resolveMarket(
+        parseInt(marketId), 
+        outcome === 'true',
+        {
+          gasLimit: 300000
+        }
+      );
 
-      // Contract ABI for resolveMarket function - simplified
-      const resolveMarketData = `0x${'abcdef1234567890abcdef1234567890abcdef12' + '0'.repeat(64)}`;
-
-      const txHash = await ethereum.request({
-        method: 'eth_sendTransaction',
-        params: [{
-          from: account,
-          to: PREDICTION_MARKET_ADDRESS,
-          data: resolveMarketData,
-          gas: '0x76c0',
-        }],
-      });
-
-      setSuccess(`Market resolution transaction sent: ${txHash}`);
+      setSuccess(`Market resolution transaction sent: ${tx.hash}`);
+      
+      // Wait for transaction to be mined
+      await tx.wait();
+      
+      setSuccess(`Market resolved successfully! Transaction: ${tx.hash}`);
       setMarketId('');
       setOutcome('');
+      
+      // Reload markets
+      setTimeout(() => loadMarkets(), 2000);
+      
     } catch (err) {
+      console.error('Error resolving market:', err);
       setError(`Error resolving market: ${err.message}`);
     } finally {
       setLoading(false);
@@ -243,6 +295,12 @@ export default function AdminPage() {
             <div className="text-white">
               <p className="mb-2">Connected: <span className="text-green-400">{account}</span></p>
               <p className="text-sm text-white/70">Network: Intuition Testnet</p>
+              <button
+                onClick={loadMarkets}
+                className="mt-2 bg-blue-500/20 text-blue-200 px-4 py-2 rounded-lg border border-blue-500/50 hover:bg-blue-500/30 transition-all"
+              >
+                Refresh Markets
+              </button>
             </div>
           ) : (
             <button
@@ -255,7 +313,7 @@ export default function AdminPage() {
           )}
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 gap-6 mb-6">
           {/* Create Market */}
           <div className="bg-white/10 backdrop-blur-lg rounded-lg border border-white/20 p-6">
             <h2 className="text-xl font-bold text-white mb-4">Create New Market</h2>
@@ -334,17 +392,57 @@ export default function AdminPage() {
           </div>
         </div>
 
+        {/* Markets List */}
+        <div className="bg-white/10 backdrop-blur-lg rounded-lg border border-white/20 p-6">
+          <h2 className="text-xl font-bold text-white mb-4">Existing Markets</h2>
+          {markets.length === 0 ? (
+            <p className="text-white/70">No markets found. Create your first market above!</p>
+          ) : (
+            <div className="space-y-4">
+              {markets.map((market) => (
+                <div key={market.id} className="bg-white/5 rounded-lg p-4 border border-white/10">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="text-white font-semibold">#{market.id}: {market.question}</h3>
+                    <div className="flex gap-2">
+                      {market.resolved ? (
+                        <span className="bg-gray-500/20 text-gray-300 px-2 py-1 rounded text-xs">
+                          Resolved: {market.outcome ? 'Yes' : 'No'}
+                        </span>
+                      ) : (
+                        <span className="bg-green-500/20 text-green-300 px-2 py-1 rounded text-xs">
+                          Active
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4 text-sm text-white/70">
+                    <div>
+                      <p>Yes Bets: {market.totalYesBets} TRUST</p>
+                    </div>
+                    <div>
+                      <p>No Bets: {market.totalNoBets} TRUST</p>
+                    </div>
+                    <div>
+                      <p>Ends: {market.bettingEndTime}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Contract Info */}
         <div className="bg-white/10 backdrop-blur-lg rounded-lg border border-white/20 p-6 mt-6">
           <h2 className="text-xl font-bold text-white mb-4">Contract Information</h2>
           <div className="grid md:grid-cols-2 gap-4 text-sm">
             <div>
               <p className="text-white/70">PredictionMarket:</p>
-              <p className="text-white font-mono">{PREDICTION_MARKET_ADDRESS}</p>
+              <p className="text-white font-mono">{CONTRACT_ADDRESSES.PREDICTION_MARKET}</p>
             </div>
             <div>
               <p className="text-white/70">WTRUST:</p>
-              <p className="text-white font-mono">{WTRUST_ADDRESS}</p>
+              <p className="text-white font-mono">{CONTRACT_ADDRESSES.WTRUST}</p>
             </div>
           </div>
         </div>
