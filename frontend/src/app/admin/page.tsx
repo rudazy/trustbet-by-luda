@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { connectToMetaMask, createMarketOnChain } from '@/lib/web3'
 
 export default function AdminPanel() {
   const [isAuthorized, setIsAuthorized] = useState(false)
@@ -9,21 +10,41 @@ export default function AdminPanel() {
   const [isConnected, setIsConnected] = useState(false)
   const [account, setAccount] = useState('')
 
-  const connectWallet = () => {
-    // Simplified for deployment - real MetaMask integration will be added later
-    setIsConnected(true)
-    setAccount('0xABCD...Connected')
-    alert('Wallet connection simulated. Real MetaMask integration coming after deployment.')
+  const connectWallet = async () => {
+    try {
+      const connectedAccount = await connectToMetaMask()
+      if (connectedAccount) {
+        setAccount(connectedAccount)
+        setIsConnected(true)
+        alert('Wallet connected successfully!')
+      } else {
+        alert('Failed to connect wallet')
+      }
+    } catch (error) {
+      alert('Error connecting wallet')
+    }
   }
 
-  const createMarket = () => {
+  const createMarket = async () => {
+    if (!isConnected) {
+      alert('Please connect your wallet first')
+      return
+    }
+
     if (!newMarket.question || !newMarket.closeTime) {
       alert('Please fill in all fields')
       return
     }
-    
-    alert(`Market "${newMarket.question}" created! Close time: ${newMarket.closeTime}`)
-    setNewMarket({ question: '', closeTime: '' })
+
+    try {
+      const success = await createMarketOnChain(newMarket.question, newMarket.closeTime)
+      if (success) {
+        alert(Market "${newMarket.question}" created successfully!)
+        setNewMarket({ question: '', closeTime: '' })
+      }
+    } catch (error) {
+      alert('Error creating market')
+    }
   }
 
   if (!isAuthorized) {
@@ -60,7 +81,7 @@ export default function AdminPanel() {
               onClick={connectWallet}
               className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
             >
-              {isConnected ? account : 'Connect Wallet'}
+              {isConnected ? ${account.slice(0, 6)}...${account.slice(-4)} : 'Connect Wallet'}
             </button>
             <button
               onClick={() => setIsAuthorized(false)}
@@ -79,6 +100,7 @@ export default function AdminPanel() {
             <div>WTRUST: 0x06cB08C9A108B590F292Ff711EF2B702EC07747C</div>
             <div>PredictionMarket: 0x90afF0acfF0Cb40EaB7Fc3bc1f4C054399d95D23</div>
             <div>Network: Intuition Testnet (Chain ID: 13579)</div>
+            <div>Status: {isConnected ? 'Connected' : 'Disconnected'}</div>
           </div>
         </div>
 
@@ -101,9 +123,10 @@ export default function AdminPanel() {
             />
             <button
               onClick={createMarket}
-              className="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-medium"
+              disabled={!isConnected}
+              className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white py-3 rounded-lg font-medium"
             >
-              Create Market
+              {isConnected ? 'Create Market' : 'Connect Wallet First'}
             </button>
           </div>
         </div>

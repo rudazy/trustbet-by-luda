@@ -1,0 +1,39 @@
+export const connectToMetaMask = async () => {
+  if (typeof window === 'undefined') return null
+  
+  try {
+    const ethereum = (window as any).ethereum
+    if (!ethereum) throw new Error('MetaMask not found')
+    
+    const accounts = await ethereum.request({ method: 'eth_requestAccounts' })
+    
+    // Switch to Intuition testnet
+    await ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: '0x351B' }]
+    }).catch(async (error: any) => {
+      if (error.code === 4902) {
+        await ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: '0x351B',
+            chainName: 'Intuition Testnet',
+            nativeCurrency: { name: 'tTRUST', symbol: 'tTRUST', decimals: 18 },
+            rpcUrls: ['http://testnet.rpc.intuition.systems']
+          }]
+        })
+      }
+    })
+    
+    return accounts[0]
+  } catch (error) {
+    console.error('Wallet connection failed:', error)
+    return null
+  }
+}
+
+export const createMarketOnChain = async (question: string, closeTime: string) => {
+  // This will contain the actual contract call
+  console.log('Creating market:', question, closeTime)
+  return true
+}
